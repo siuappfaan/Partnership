@@ -364,33 +364,31 @@
   /* ---- settings modal ---- */
   .settings-panel{ max-width: 420px; }
 
-  .settings-section{
-    padding: 16px 0;
+  .setting-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    padding: 10px 0;
     border-bottom: 1px solid var(--hairline);
   }
-  .settings-section:first-of-type{ padding-top: 4px; }
-  .settings-section:last-of-type{ border-bottom: none; }
+  .setting-row:first-of-type{ padding-top: 2px; }
+  .setting-label, .setting-row > label{
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .setting-controls{ display:flex; align-items:center; gap: 8px; }
+  .setting-btn{ padding: 7px 14px; font-size: 13px; white-space: nowrap; }
+  .setting-controls select{ width: auto; padding: 7px 8px; font-size: 13px; }
+  #settings-modal .modal-actions{ margin-top: 14px; }
 
-  .settings-section h4{
-    margin: 0 0 10px;
-    font-family: var(--sans);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  .app-version{
+    text-align: center;
+    font-size: 10.5px;
     color: var(--ink-soft);
+    opacity: 0.6;
+    margin: 28px 0 70px;
   }
-
-  .settings-section .field-inline{ margin-bottom: 12px; }
-
-  .settings-full-btn{ width: 100%; }
-
-  .settings-row{
-    display:flex;
-    gap: 10px;
-  }
-
-  .settings-half-btn{ flex: 1; }
 
   .btn-ghost-outline{
     background: none;
@@ -584,7 +582,6 @@
     border: 1px solid var(--hairline);
     border-radius: var(--radius-md);
     box-shadow: 0 1px 3px rgba(34,48,31,0.05);
-    transition: padding 0.2s ease;
   }
 
   .giving-summary-stats{
@@ -595,12 +592,6 @@
     overflow: hidden;
   }
 
-  .giving-summary.collapsed{ padding-top: 10px; padding-bottom: 10px; }
-  .giving-summary.collapsed .giving-summary-stats{
-    max-height: 0;
-    opacity: 0;
-    margin: 0;
-  }
 
   .giving-summary .stat .num{
     font-family: var(--serif);
@@ -613,25 +604,6 @@
     color: var(--ink-soft);
   }
 
-  .giving-summary-toggle{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    flex-shrink: 0;
-    margin-left: auto;
-    background: none;
-    border: 1px solid var(--hairline-strong);
-    border-radius: var(--radius-full);
-    color: var(--ink-soft);
-    cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-  }
-  .giving-summary-toggle:hover{ color: var(--ink); background: var(--paper); }
-  .giving-summary-toggle svg{ transition: transform 0.2s ease; }
-  .giving-summary.collapsed .giving-summary-toggle svg{ transform: rotate(180deg); }
 
   .amount-cell{ font-variant-numeric: tabular-nums; text-align: right; }
   th[data-sort="amount"]{ text-align: right; }
@@ -946,11 +918,6 @@
           <span class="label">partners supported financially</span>
         </div>
       </div>
-      <button type="button" id="giving-summary-toggle" class="giving-summary-toggle" aria-label="Hide summary" title="Hide summary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
     </div>
     <div class="table-scroll">
       <table>
@@ -969,6 +936,7 @@
       <p>Tick the giving box for a partner to record support here.</p>
     </div>
   </section>
+  <div class="app-version" id="app-version"></div>
 </div>
 
 <button class="fab" id="add-btn" aria-label="Add a partner" title="Add a partner">+</button>
@@ -1044,50 +1012,46 @@
   <div class="modal settings-panel">
     <h3>Settings</h3>
 
-    <div class="settings-section">
-      <h4>Prayer cycle</h4>
-      <div class="field-inline">
-        <label for="month-range">Cycle length</label>
+    <div class="setting-row">
+      <label for="month-range">Cycle length</label>
+      <div class="setting-controls">
         <select id="month-range">
           <option value="1">1 month</option>
           <option value="2">2 months</option>
           <option value="3">3 months</option>
         </select>
+        <button type="button" id="new-cycle-btn" class="btn btn-primary setting-btn">New cycle</button>
       </div>
-      <button type="button" id="new-cycle-btn" class="btn btn-primary settings-full-btn">New cycle</button>
     </div>
 
-    <div class="settings-section">
-      <h4>Appearance</h4>
-      <button type="button" id="theme-toggle-btn" class="btn btn-ghost-outline settings-full-btn">
-        <span id="theme-toggle-label">Switch to dark mode</span>
+    <div class="setting-row">
+      <span class="setting-label">Theme</span>
+      <button type="button" id="theme-toggle-btn" class="btn btn-ghost-outline setting-btn">
+        <span id="theme-toggle-label">Dark mode</span>
       </button>
     </div>
 
-    <div class="settings-section">
-      <h4>Install</h4>
-      <p class="field-hint">Add Partnership to your home screen so it opens like any other app.</p>
-      <button type="button" id="install-app-btn" class="btn btn-ghost-outline settings-full-btn">Install as app</button>
-    </div>
-
-    <div class="settings-section">
-      <h4>App icon badge</h4>
-      <p class="field-hint">Shows a count on the app icon for anyone due today or overdue. Only updates when you open the app - it can't check in the background. Works on iPhone/iPad (installed to the home screen) and desktop browsers; Android doesn't support this yet.</p>
-      <button type="button" id="badge-toggle-btn" class="btn btn-ghost-outline settings-full-btn">
-        <span id="badge-toggle-label">Turn on app icon badge</span>
+    <div class="setting-row">
+      <span class="setting-label" title="Shows a count on the app icon for anyone due today or overdue. Updates when the app is opened. iPhone/iPad (installed) and desktop only.">App icon badge</span>
+      <button type="button" id="badge-toggle-btn" class="btn btn-ghost-outline setting-btn">
+        <span id="badge-toggle-label">Off</span>
       </button>
     </div>
 
-    <div class="settings-section">
-      <h4>Backup &amp; sync</h4>
-      <p class="field-hint">Export a backup file to keep safe or move to another device, or import one to restore it.</p>
-      <div class="settings-row">
-        <button type="button" id="export-btn" class="btn btn-ghost-outline settings-half-btn">Export data</button>
-        <button type="button" id="import-btn" class="btn btn-ghost-outline settings-half-btn">Import data</button>
-      </div>
-      <input type="file" id="import-file-input" accept="application/json" style="display:none;">
-      <p id="import-export-msg" class="field-hint" style="display:none;"></p>
+    <div class="setting-row">
+      <span class="setting-label">Install app</span>
+      <button type="button" id="install-app-btn" class="btn btn-ghost-outline setting-btn">Install</button>
     </div>
+
+    <div class="setting-row">
+      <span class="setting-label">Backup</span>
+      <div class="setting-controls">
+        <button type="button" id="export-btn" class="btn btn-ghost-outline setting-btn">Export</button>
+        <button type="button" id="import-btn" class="btn btn-ghost-outline setting-btn">Import</button>
+      </div>
+    </div>
+    <input type="file" id="import-file-input" accept="application/json" style="display:none;">
+    <p id="import-export-msg" class="field-hint" style="display:none;"></p>
 
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" data-close="settings-modal">Close</button>
@@ -1139,6 +1103,6 @@
   </div>
 </div>
 
-<script src="app.js?v=13"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

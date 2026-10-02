@@ -1,6 +1,6 @@
 // Bump this version string every time index.html / app.js change so old
 // caches get discarded and the new files are fetched fresh.
-const CACHE_VERSION = "v13";
+const CACHE_VERSION = "v15";
 const CACHE_NAME = "gospel-partners-" + CACHE_VERSION;
 const APP_SHELL = [
   "./index.html",

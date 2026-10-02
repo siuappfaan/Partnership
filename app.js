@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  // Bump on every update (also bump CACHE_VERSION in sw.js and ?v= in index.html).
+  var APP_VERSION = "1.1.0";
+
   var STORAGE_KEY = "gospelPartners.v1";
   var SETTINGS_KEY = "gospelPartners.settings.v1";
   var DAY_MS = 24 * 60 * 60 * 1000;
@@ -22,7 +25,6 @@
     deferredUntilNewMonth: false,
     deferredMonthRange: null,
     lastPromptedForEndDate: null,
-    givingSummaryCollapsed: false,
     badgeEnabled: false
   };
   var pendingGivingTargetId = null; // id awaiting an amount from the giving modal
@@ -47,9 +49,6 @@
         }
         if (parsed && typeof parsed.lastShuffleMonthIndex === "number") {
           settings.lastShuffleMonthIndex = parsed.lastShuffleMonthIndex;
-        }
-        if (parsed && typeof parsed.givingSummaryCollapsed === "boolean") {
-          settings.givingSummaryCollapsed = parsed.givingSummaryCollapsed;
         }
         if (parsed && typeof parsed.badgeEnabled === "boolean") {
           settings.badgeEnabled = parsed.badgeEnabled;
@@ -216,15 +215,16 @@
   // end of the range's final month. This only ever runs when a new prayer
   // cycle is explicitly started - dates otherwise stay fixed once assigned.
   function recomputeSchedule() {
-    var unprayed = partners.filter(function (p) { return !p.prayed; });
-    var n = unprayed.length;
+    var n = partners.length;
     if (n === 0) return;
     var today = todayAtMidnight();
     var windowStart = new Date(today.getFullYear(), today.getMonth(), 1);
     var windowEnd = endOfMonthRange(settings.monthRange, today);
     var windowDays = Math.max(1, Math.round((windowEnd.getTime() - windowStart.getTime()) / DAY_MS));
 
-    unprayed.forEach(function (p, i) {
+    // Slots are handed out by list position: prayed partners (top of the list)
+    // hold the earliest slots, unprayed partners the later ones.
+    partners.forEach(function (p, i) {
       var offsetDays = Math.round(((i + 0.5) * windowDays) / n);
       offsetDays = Math.max(0, Math.min(windowDays, offsetDays));
       var d = new Date(windowStart.getTime() + offsetDays * DAY_MS);
@@ -429,18 +429,7 @@
     });
   }
 
-  function applyGivingSummaryCollapsed() {
-    var el = document.getElementById("giving-summary");
-    var btn = document.getElementById("giving-summary-toggle");
-    if (!el || !btn) return;
-    el.classList.toggle("collapsed", settings.givingSummaryCollapsed);
-    var label = settings.givingSummaryCollapsed ? "Show summary" : "Hide summary";
-    btn.setAttribute("aria-label", label);
-    btn.setAttribute("title", label);
-  }
-
   function renderGivingTable() {
-    applyGivingSummaryCollapsed();
     var tbody = document.getElementById("giving-tbody");
     var emptyEl = document.getElementById("giving-empty");
     var givers = partners.filter(function (p) { return p.giving; });
@@ -607,6 +596,8 @@
 
   function removePartner(id) {
     partners = partners.filter(function (p) { return p.id !== id; });
+    // Redistribute the dates for the new total, like adding a partner does.
+    recomputeSchedule();
     save();
     render();
   }
@@ -626,26 +617,30 @@
     }
   }
 
-  // Moves a partner to the boundary between the prayed and unprayed groups:
-  // marking prayed sends them to the bottom of the prayed group (top of the
-  // list stays ordered by "who was prayed for first"); un-praying sends them
-  // to the top of the unprayed group, ready to come up again.
-  //
-  // Either direction changes how many people are still waiting to be prayed
-  // for, so - like adding or removing a partner - the remaining unprayed
-  // group's dates get redistributed across the cycle window to reflect the
-  // new count and order. A newly-prayed partner's own date is set to today,
-  // recording when they actually were prayed for (which is what puts them at
-  // the bottom of the prayed group, most-recent-first).
+  // The cycle's dates are fixed "slots" (the sorted set of every partner's
+  // scheduled date). Ticking or un-ticking only moves PEOPLE between slots:
+  //  - ticked: the partner goes to the bottom of the prayed group and takes the
+  //    slot at that position (the next-up date); anyone who was above them in
+  //    the unprayed list shifts down one slot, anyone below keeps their slot.
+  //  - un-ticked: the partner returns to the top of the unprayed list with the
+  //    next-up date, and everyone else shifts down one.
+  // Slots are only recalculated by a new cycle or by adding/removing a partner.
   function moveToPrayedBoundary(p, makePrayed) {
+    var slots = partners
+      .map(function (x) { return x.scheduled; })
+      .filter(Boolean)
+      .sort(function (a, b) { return parseISODate(a).getTime() - parseISODate(b).getTime(); });
+
     partners = partners.filter(function (x) { return x.id !== p.id; });
     p.prayed = makePrayed;
-    if (makePrayed) {
-      p.scheduled = toISODate(todayAtMidnight());
-    }
     var insertIndex = partners.filter(function (x) { return x.prayed; }).length;
     partners.splice(insertIndex, 0, p);
-    recomputeSchedule();
+
+    if (slots.length === partners.length) {
+      partners.forEach(function (x, i) { x.scheduled = slots[i]; });
+    } else {
+      recomputeSchedule();
+    }
   }
 
   // Marking someone as prayed (or un-praying them) moves them: prayed
@@ -986,7 +981,7 @@
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", resolved === "dark" ? "#1E211C" : "#22301F");
     var label = document.getElementById("theme-toggle-label");
-    if (label) label.textContent = resolved === "dark" ? "Switch to light mode" : "Switch to dark mode";
+    if (label) label.textContent = resolved === "dark" ? "Light mode" : "Dark mode";
   }
 
   function toggleTheme() {
@@ -1045,7 +1040,6 @@
       settings.deferredUntilNewMonth = !!parsed.settings.deferredUntilNewMonth;
       settings.deferredMonthRange = [1, 2, 3].indexOf(parsed.settings.deferredMonthRange) !== -1 ? parsed.settings.deferredMonthRange : null;
       settings.lastPromptedForEndDate = typeof parsed.settings.lastPromptedForEndDate === "string" ? parsed.settings.lastPromptedForEndDate : null;
-      settings.givingSummaryCollapsed = !!parsed.settings.givingSummaryCollapsed;
       settings.badgeEnabled = !!parsed.settings.badgeEnabled;
     }
     save();
@@ -1053,7 +1047,7 @@
     showImportExportMessage("Backup imported successfully.");
     document.getElementById("month-range").value = String(settings.monthRange);
     document.getElementById("badge-toggle-label").textContent =
-      settings.badgeEnabled ? "Turn off app icon badge" : "Turn on app icon badge";
+      settings.badgeEnabled ? "On" : "Off";
     applyTheme(settings.theme);
     render();
   }
@@ -1084,7 +1078,9 @@
     if (rolled || missingSchedule.length > 0 || shuffled) save();
     document.getElementById("month-range").value = String(settings.monthRange);
     document.getElementById("badge-toggle-label").textContent =
-      settings.badgeEnabled ? "Turn off app icon badge" : "Turn on app icon badge";
+      settings.badgeEnabled ? "On" : "Off";
+    var vEl = document.getElementById("app-version");
+    if (vEl) vEl.textContent = "v" + APP_VERSION;
     render();
     initDragReorder();
     initNextUpSwipe();
@@ -1148,26 +1144,7 @@
       var next = !settings.badgeEnabled;
       setBadgeEnabled(next);
       document.getElementById("badge-toggle-label").textContent =
-        next ? "Turn off app icon badge" : "Turn on app icon badge";
-    });
-
-    // giving summary collapse/expand
-    document.getElementById("giving-summary-toggle").addEventListener("click", function () {
-      settings.givingSummaryCollapsed = !settings.givingSummaryCollapsed;
-      saveSettings();
-      applyGivingSummaryCollapsed();
-    });
-
-    // install as app
-    document.getElementById("install-app-btn").addEventListener("click", function () {
-      if (deferredInstallPrompt) {
-        deferredInstallPrompt.prompt();
-        deferredInstallPrompt.userChoice.then(function () {
-          deferredInstallPrompt = null;
-        });
-      } else {
-        openInstallInstructions();
-      }
+        next ? "On" : "Off";
     });
 
     // export / import
